@@ -2,7 +2,7 @@
 
 [![NPM version][npm-image]][npm-url] [![Dependency Status][daviddm-image]][daviddm-url] [![Travis CI][travis-image]][travis-url] [![codecov][codecov-image]][codecov-url]
 
-Easy configuration for node.js
+Easy configuration for node.js, inspired by [node-config ](https://github.com/lorenwest/node-config).
 
 ## Install
 
@@ -15,7 +15,7 @@ npm i easyconfig
 Example file structure:
 
 ```
-APP_ROOT
+.
 ├── config
 │   ├── default.js
 │   ├── development.json
@@ -23,107 +23,196 @@ APP_ROOT
 └── index.js
 ```
 
-`default.js`:
-
-```js
-module.exports = {
-  get assetPrefix () {
-    return `${this.cdn}/assets`
-  }
-}
 ```
-
-`development.json`:
-
-```json
-{
-  "cdn": "http://localhost"
-}
-```
-
-`production.js`:
-
-```js
-module.exports = {
-  cdn: 'https://cdn.domain.com'
-}
-```
-
-`index.js`:
-
-```js
-const EasyConfig = require('easyconfig')
-console.log(EasyConfig().assetPrefix)
-```
-
-```
+// Default is development
 node index.js
-// print "http://localhost/assets"
-
+// or
 NODE_ENV=production node index.js
-// print "https://cdn.domain.com/assets"
 ```
 
 ## Usage
 
-### Where config file stores
-
-By default, it's `${process.cwd()}/config`.
-
-### Loading config with `NODE_ENV`
-
-`easyconfig` will try to load config file that matches `NODE_ENV`.
+```js
+require([BASEDIR, [NAME, [OPTIONS]]])
+// or
+require(OPTOINS)
 
 ```
-NODE_ENV=production node app.js
-```
+
+Available options:
+
+- `name`: the configuration name you want to load (same as `NODE_CONFIG_ENV`, `NODE_ENV`).
+- `basedir`: if it's `null`, will use `process.cwd()`, if using `EasyConfig` in main module, just keep it empty, otherwise, pass `__dirname` to `EasyConfig`. We will explain it later.
+- `instance`: same as `NODE_APP_INSTANCE`.
+- `hostname`: same as `HOST`, `HOSTNAME`, `os.hostname()`.
+- `subModuleMode`: enable sub module mode.
+
+
+Configuration files **must** be stored in `config` folder.
+
+### Supported Environment Variables
+
+`EasyConfig` will use variables from `process.env` to load configuration files:
+
+- `NODE_CONFIG_ENV`, `NODE_ENV`
+- `NODE_APP_INSTANCE`
+- `HOST`, `HOSTNAME`, `os.hostname()`
+
+_Load priority is lowered from left to right._
+
+Environment variables can be changed when needed to:
 
 ```js
-const config = EasyConfig() // returns config/production.js
-```
+require('easyconfig')(__dirname, 'production', { instance: 1 })
 
-- If `NODE_ENV` is empty, will use `development`.
-- If none of files matches `NODE_ENV`, will return data in `default` file or an empty object.
-
-### Loading config by name
-
-```js
-const config = EasyConfig('development')
-const specialConfig = EasyConfig('specialConfig')
-```
-
-### Loading config outside `config/`
-
-```js
-const config = EasyConfig({ basedir: 'path/to/config/file' })
-// Or
-const config = EasyConfig({
-  basedir: 'path/to/config/file',
-  name: 'config name'
+require('easyconfig')({
+  name: 'production',
+  instance: 2,
+  hostname: 'example.com'
 })
 ```
 
-### Loading config non-js file
+### Load Order
 
-You can use `easyconfig.register` to load non-js file.
-
-`easyconfig.register(EXTNAME, FILE_LOADER)`
-
-For example, `cson`:
-
-```js
-const cson = require('cson')
-const EasyConfig = require('easyconfig')
-EasyConfig.register('.cson', cson.load.bind(cson))
+```
+default.EXT
+default-{instance}.EXT
+{deployment}.EXT
+{deployment}-{instance}.EXT
+{short_hostname}.EXT
+{short_hostname}-{instance}.EXT
+{short_hostname}-{deployment}.EXT
+{short_hostname}-{deployment}-{instance}.EXT
+{full_hostname}.EXT
+{full_hostname}-{instance}.EXT
+{full_hostname}-{deployment}.EXT
+{full_hostname}-{deployment}-{instance}.EXT
+local.EXT
+local-{instance}.EXT
+local-{deployment}.EXT
+local-{deployment}-{instance}.EXT
+custom-environment-variables.EXT
 ```
 
-### Default config file
+`EXT` can be `cson`, `js`, `json`, `properties`, `toml`, `xml`, or `yaml`.
 
-`easyconfig` will search for `default` file and merge it into target config file.
+### How It Works
 
-### Property descriptors
 
-`easyconfig` respects property descriptor, so you can do things like this:
+Exampla file structure:
+
+```
+.
+├── mian-module
+│   ├── config
+│   ├── index.js
+│   └── node_modules
+│       └── sub-module-a
+│           ├── config
+│           └── index.js
+└── sub-module-b
+    ├── config
+    └── index.js
+```
+
+#### In main module
+
+`main-module/index.js`:
+
+```js
+const config = require('easyconfig')()
+
+const subModuleA = require('sub-module-a')
+
+const app = new require('koa')
+
+app.use(subModuleA())
+```
+
+#### In sub module
+
+For sub module, `EasyConfig` will:
+
+- Try to determine its root dir (**which contains a `package.json` file**).
+- If failed to resolve root dir, use `process.cwd()` instead.
+
+When root dir is found,
+
+- Load configuration files from module root dir.
+- Load configuratino files from `process.cwd()`.
+
+`sub-module-a/index.js`:
+
+```js
+// config has all the props from `sub-module-a/config` and `main-module/config`
+const config = require('easyconfig')(__dirname)
+```
+
+There's two use cases that `EasyConfig` suits for:
+
+##### Sub module has its own configuration, but needs environment variables
+
+`sub-module-a/index.js`,
+
+```js
+const config = require('easyconfig')(__dirname)
+```
+
+`EasyConfig` will merge main module's configuration into sub modules's: `merge({}, main_module_config, sub_module_a_config)`.
+
+In this way, you can use environment variables in sub module:
+
+
+```
+.
+└── sub-module
+    └── config
+        ├── development.js
+        └── production.js
+```
+
+##### Sub module has default configuration and allow parent module to configure it
+
+In `sub-module-a/index.js`,
+
+```js
+const config = require('easyconfig')({
+    basedir: __dirname,
+    subModuleMode: 'fieldName'
+})
+```
+
+`EasyConfig` will merge sub module's configuration with main module's: `merge({}, sub_module_a_config, main_module_config)`.
+
+If pass a string to `subModuleMode`, `EasyConfig` will treat it as a property name, and only load value with this property name from main module.
+
+For example, main module's config:
+
+```js
+{
+    subModule: {
+        port: 2345
+    }
+    port: 1234,
+    host: 'example.com'
+}
+```
+
+Sub module:
+
+```js
+const config = require('easyconfig')({ 
+    basedir: __dirname,
+    subModuleMode: 'subModule'
+})
+
+assert(config.port === 2345)
+assert('host' in config === false)
+```
+
+#### Property Descriptor
+
+`EasyConfig` respects property descriptor, so you can do things like this:
 
 In `default.js`:
 
@@ -146,7 +235,7 @@ module.exports = {
 
 ```js
 const config = EasyConfig()
-console.log(config.foo) // bar/baz
+assert(config.foo === 'bar/baz')
 ```
 
 [npm-url]: https://npmjs.org/package/easyconfig
