@@ -4,9 +4,16 @@ node_js:
   - 8
 matrix:
   fast_finish: true
+env:
+  - TRAVIS=true
 install:
   - npm i
 script:
+  - cd test/fixtures/project-b
+  - npm link
+  - cd ../project-a
+  - npm link project-b
+  - cd ../../..
   - npm run lint
   - npm test
 after_script:

@@ -24,15 +24,17 @@ test('Work with sub module that under node_modules', t => {
 test('Work with sub module that linked to node_modules (e.g. npm link)', t => {
   env.setCWD()
 
-  try {
-    fs.unlinkSync(path.join(env.PROJECT_A_DIR, 'node_modules/project-b'))
-  } catch (e) {
-    if (!e || e.code !== 'ENOENT') {
-      throw e
+  if (!process.env.TRAVIS) {
+    try {
+      fs.unlinkSync(path.join(env.PROJECT_A_DIR, 'node_modules/project-b'))
+    } catch (e) {
+      if (!e || e.code !== 'ENOENT') {
+        throw e
+      }
     }
-  }
 
-  fs.symlinkSync(env.PROJECT_B_DIR, path.join(env.PROJECT_A_DIR, 'node_modules/project-b'))
+    fs.symlinkSync(env.PROJECT_B_DIR, path.join(env.PROJECT_A_DIR, 'node_modules/project-b'))
+  }
 
   const { linkedSubModule } = require('./fixtures/project-a')
   t.true(linkedSubModule instanceof EasyConfig)
