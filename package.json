@@ -1,6 +1,6 @@
 {
   "name": "easyconfig",
-  "version": "1.0.0-0",
+  "version": "1.0.0-1",
   "description": "Easy configuration for node.js",
   "main": "index.js",
   "scripts": {
@@ -25,19 +25,19 @@
   "devDependencies": {
     "ava": "^0.24.0",
     "command-line-test": "^1.0.10",
+    "cson": "^4.1.0",
+    "js-yaml": "^3.10.0",
     "nyc": "^11.4.1",
-    "standard": "^10.0.3"
+    "properties": "^1.2.1",
+    "standard": "^10.0.3",
+    "toml": "^2.3.3",
+    "x2js": "^3.1.1"
   },
   "dependencies": {
-    "cson": "^4.1.0",
     "debug": "^3.1.0",
     "defp": "^1.0.0",
     "dot-prop": "^4.2.0",
     "is-plain-obj": "^1.1.0",
-    "js-yaml": "^3.10.0",
-    "properties": "^1.2.1",
-    "sagase": "^1.0.0",
-    "toml": "^2.3.3",
-    "x2js": "^3.1.1"
+    "sagase": "^1.0.0"
   }
 }
